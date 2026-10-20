@@ -65,3 +65,32 @@ function selectAnswer(index) {
         document.getElementById('feedback-icon').innerText = "⚠️";
     }
 }
+
+function selectAnswer(index) {
+    clearInterval(timerInterval);
+    document.getElementById('game-screen').classList.add('hidden');
+    document.getElementById('feedback-screen').classList.remove('hidden');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const activityId = urlParams.get('activityId') || 'default_session';
+    const studentName = document.getElementById('student-name').value;
+
+    const isCorrect = (index === 0);
+    const points = isCorrect ? 1000 : 0;
+
+    // Enviar a Firebase en tiempo real
+    database.ref(`sessions/${activityId}/players/${studentName.replace(/\s+/g, '_')}`).set({
+        name: studentName,
+        score: points,
+        correct: isCorrect ? 1 : 0,
+        incorrect: isCorrect ? 0 : 1
+    });
+
+    if (isCorrect) {
+        document.getElementById('feedback-title').innerText = "¡Correcto! 👏";
+        document.getElementById('feedback-icon').innerText = "✅";
+    } else {
+        document.getElementById('feedback-title').innerText = "¡Incorrecto! ❌";
+        document.getElementById('feedback-icon').innerText = "⚠️";
+    }
+}
