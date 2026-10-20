@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timeline Live - Panel del Instructor</title>
+    <title>TimelineLive - Panel del Instructor</title>
     
     <!-- Librería para generar códigos QR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -12,78 +12,91 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
+    <!-- Fuente Montserrat para un look moderno -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
     <!-- Estilos CSS -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <header class="app-header">
-        <h1>Timeline Live - Panel del Instructor</h1>
-        <p>Gamificación e interactividad en tiempo real</p>
+    <!-- Barra de Navegación Superior -->
+    <header class="navbar">
+        <div class="logo">
+            <span class="logo-icon">⏳</span> TimelineLive
+        </div>
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-builder')">1. Configurar Actividad</button>
+            <button class="tab-btn" onclick="switchTab('tab-lobby')">2. Sala en Vivo (QR)</button>
+            <button class="tab-btn" onclick="switchTab('tab-analytics')">3. Resumen y Podio</button>
+            <!-- Botón de juego oculto para mantener la lógica, pero se puede acceder vía JS -->
+            <button class="tab-btn hidden" id="btn-game-tab" onclick="switchTab('tab-game')">En Juego</button>
+        </nav>
     </header>
-
-    <nav class="nav-tabs">
-        <button class="tab-btn active" onclick="switchTab('tab-builder')">1. Configurar Actividad</button>
-        <button class="tab-btn" onclick="switchTab('tab-lobby')">2. Sala de Espera (Lobby)</button>
-        <button class="tab-btn" onclick="switchTab('tab-game')">3. En Juego</button>
-        <button class="tab-btn" onclick="switchTab('tab-analytics')">4. Resultados y Podio</button>
-    </nav>
 
     <main class="container">
         <!-- PESTAÑA 1: CONFIGURAR ACTIVIDAD -->
         <section id="tab-builder" class="tab-content active">
-            <h2>Crear o Editar Línea de Tiempo</h2>
+            <h2>Configurar Nueva Línea de Tiempo</h2>
             <form id="timeline-form">
                 <div class="form-group">
                     <label for="activity-title">Título de la Actividad:</label>
-                    <input type="text" id="activity-title" value="Evolución de la Investigación Acción Participativa y el Poder" required>
+                    <input type="text" id="activity-title" value="Evolución del Desarrollo de Software - SENA" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="event-timer">Tiempo límite por pregunta (segundos):</label>
+                    <label for="event-timer">Tiempo por Evento (segundos):</label>
                     <input type="number" id="event-timer" value="30" min="5" max="120" required>
                 </div>
 
-                <h3>Eventos y Preguntas</h3>
+                <h3>Eventos Cronológicos</h3>
                 <div id="events-container">
                     <!-- Evento 1 -->
                     <div class="builder-card">
                         <h4>Evento 1</h4>
-                        <div class="form-row">
-                            <input type="text" class="ev-year" value="Orígenes de la IAP" placeholder="Hito / Fase" required>
-                            <input type="text" class="ev-desc" value="Consolidación de metodologías participativas." placeholder="Descripción corta" required>
+                        <div class="form-group">
+                            <input type="text" class="ev-year" value="Fase 1 - Análisis" placeholder="Hito / Fase" required>
                         </div>
-                        <input type="text" class="ev-q" value="¿Cuál es la premisa fundamental de la Investigación Acción Participativa?" placeholder="Pregunta" required>
+                        <div class="form-group">
+                            <textarea class="ev-desc" rows="2" placeholder="Descripción corta" required>Se definen los requerimientos del software y el alcance del proyecto.</textarea>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="ev-q" value="¿Cuál es el objetivo principal de esta fase?" placeholder="Pregunta" required>
+                        </div>
                         <div class="options-grid">
-                            <input type="text" class="ev-o1" value="Unir la investigación científica con la acción transformadora y el saber popular." placeholder="Opción A (Correcta)" required>
-                            <input type="text" class="ev-o2" value="Mantener una observación estrictamente neutral sin involucrarse con la comunidad." placeholder="Opción B" required>
-                            <input type="text" class="ev-o3" value="Aplicar únicamente modelos cuantitativos de bloques experimentales al azar." placeholder="Opción C" required>
+                            <input type="text" class="ev-o1" value="Comprender y documentar requerimientos" placeholder="Opción A (Correcta)" required>
+                            <input type="text" class="ev-o2" value="Escribir código en producción" placeholder="Opción B" required>
+                            <input type="text" class="ev-o3" value="Diseñar la base de datos" placeholder="Opción C" required>
                         </div>
                     </div>
 
                     <!-- Evento 2 -->
                     <div class="builder-card">
                         <h4>Evento 2</h4>
-                        <div class="form-row">
-                            <input type="text" class="ev-year" value="Aportes de John Gaventa" placeholder="Hito / Fase" required>
-                            <input type="text" class="ev-desc" value="Análisis de cómo se manifiesta el poder en las estructuras sociales." placeholder="Descripción corta" required>
+                        <div class="form-group">
+                            <input type="text" class="ev-year" value="Fase 2 - Diseño" placeholder="Hito / Fase" required>
                         </div>
-                        <input type="text" class="ev-q" value="En las dinámicas de poder, ¿cómo se denominan los espacios organizados autónomamente por la comunidad?" placeholder="Pregunta" required>
+                        <div class="form-group">
+                            <textarea class="ev-desc" rows="2" placeholder="Descripción corta" required>Se establece la arquitectura del sistema y los modelos de datos.</textarea>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="ev-q" value="¿Qué se define principalmente en la fase de diseño?" placeholder="Pregunta" required>
+                        </div>
                         <div class="options-grid">
-                            <input type="text" class="ev-o1" value="Espacios creados o exigidos por la base social." placeholder="Opción A (Correcta)" required>
-                            <input type="text" class="ev-o2" value="Espacios cerrados definidos por las élites." placeholder="Opción B" required>
-                            <input type="text" class="ev-o3" value="Espacios institucionales de carácter obligatorio." placeholder="Opción C" required>
+                            <input type="text" class="ev-o1" value="La arquitectura y los modelos de datos" placeholder="Opción A (Correcta)" required>
+                            <input type="text" class="ev-o2" value="El presupuesto del proyecto" placeholder="Opción B" required>
+                            <input type="text" class="ev-o3" value="El manual de usuario final" placeholder="Opción C" required>
                         </div>
                     </div>
                 </div>
 
-                <button type="submit" class="btn primary-btn">Guardar en la Nube y Abrir Sala</button>
+                <button type="submit" class="btn btn-primary btn-block">Guardar en la Nube y Abrir Sala</button>
             </form>
         </section>
 
         <!-- PESTAÑA 2: LOBBY DE ESPERA -->
         <section id="tab-lobby" class="tab-content">
             <h2>Sala de Espera del Aprendiz</h2>
-            <div class="lobby-container">
+            <div class="lobby-grid">
                 <div class="qr-box">
                     <h3>Escanea el Código QR para ingresar:</h3>
                     <div id="qrcode"></div>
@@ -91,8 +104,10 @@
                 </div>
                 <div class="players-box">
                     <h3>Aprendices Conectados (<span id="player-count">0</span>)</h3>
-                    <ul id="players-list"></ul>
-                    <button class="btn success-btn" onclick="startGame()">¡Iniciar Juego con los Conectados!</button>
+                    <ul class="players-chips" id="players-list">
+                        <!-- Jugadores dinámicos -->
+                    </ul>
+                    <button class="btn btn-success btn-block" style="margin-top: 20px;" onclick="startGame()">¡Iniciar Juego con los Conectados!</button>
                 </div>
             </div>
         </section>
@@ -101,33 +116,39 @@
         <section id="tab-game" class="tab-content">
             <div class="game-dashboard">
                 <h2>Actividad en Curso</h2>
-                <div class="timer-display">Tiempo restante: <span id="instructor-timer">30</span>s</div>
-                <div class="current-event-card">
-                    <h3 id="current-event-title">Evento Actual</h3>
-                    <p id="current-event-question">Pregunta...</p>
+                <div class="timer-circle" style="margin: 20px auto; width: 100px; height: 100px; font-size: 2.5rem;">
+                    <span id="instructor-timer">30</span>
                 </div>
-                <button class="btn danger-btn" onclick="finishGame()">Finalizar Actividad</button>
+                <div class="builder-card" style="text-align: center;">
+                    <h3 id="current-event-title">Evento Actual</h3>
+                    <p id="current-event-question" style="font-size: 1.2rem; font-weight: 600;">Pregunta...</p>
+                </div>
+                <button class="btn btn-primary btn-block" style="background: var(--kahoot-red);" onclick="finishGame()">Finalizar Actividad</button>
             </div>
         </section>
 
         <!-- PESTAÑA 4: RESULTADOS Y PODIO -->
         <section id="tab-analytics" class="tab-content">
             <h2>Resultados en Tiempo Real</h2>
-            <div class="podium">
-                <div class="podium-place p2">
-                    <div class="avatar">🥈</div>
-                    <div class="name" id="p2-name">-</div>
-                    <div class="score" id="p2-score">0 pts</div>
+            
+            <div class="podium-container">
+                <div class="podium-step">
+                    <div class="avatar-badge">🥈</div>
+                    <div class="player-name" id="p2-name">-</div>
+                    <div class="player-score" id="p2-score">0 pts</div>
+                    <div class="bar bar-2">2</div>
                 </div>
-                <div class="podium-place p1">
-                    <div class="avatar">👑</div>
-                    <div class="name" id="p1-name">-</div>
-                    <div class="score" id="p1-score">0 pts</div>
+                <div class="podium-step">
+                    <div class="avatar-badge">👑</div>
+                    <div class="player-name" id="p1-name">-</div>
+                    <div class="player-score" id="p1-score">0 pts</div>
+                    <div class="bar bar-1">1</div>
                 </div>
-                <div class="podium-place p3">
-                    <div class="avatar">🥉</div>
-                    <div class="name" id="p3-name">-</div>
-                    <div class="score" id="p3-score">0 pts</div>
+                <div class="podium-step">
+                    <div class="avatar-badge">🥉</div>
+                    <div class="player-name" id="p3-name">-</div>
+                    <div class="player-score" id="p3-score">0 pts</div>
+                    <div class="bar bar-3">3</div>
                 </div>
             </div>
 
