@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Live - Aprendiz</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="student-body">
+
+    <div class="student-card" id="join-screen">
+        <div class="kahoot-logo">⏱️ TimelineLive</div>
+        <h2>Unirse a la Actividad</h2>
+        <div class="form-group">
+            <input type="text" id="pin-input" placeholder="PIN de la Sesión" value="859-421">
+        </div>
+        <div class="form-group">
+            <input type="text" id="student-name" placeholder="Tu Nombre y Apellido" required>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="joinGame()">Entrar a la Sala</button>
+    </div>
+
+    <!-- Créditos en la vista móvil -->
+        <div class="student-footer">
+            Autor: Grupo ing_sistemas de Córdoba
+        </div>
+
+    <!-- Pantalla de Pregunta Activa -->
+    <div class="student-card hidden" id="game-screen">
+        <div class="game-header">
+            <span id="event-badge" class="badge">Fase 1</span>
+            <div id="timer-display" class="timer-circle">30</div>
+        </div>
+
+        <h3 id="question-text">Cargando pregunta...</h3>
+
+        <div class="student-options" id="options-container">
+            <!-- Botones tipo Kahoot con colores distintivos -->
+        </div>
+    </div>
+
+    <!-- Pantalla de Espera / Feedback -->
+    <div class="student-card hidden" id="feedback-screen">
+        <h2 id="feedback-title">¡Respuesta Registrada!</h2>
+        <div id="feedback-icon" class="status-icon">⏳</div>
+        <p id="feedback-msg">Esperando a que finalice el tiempo del evento...</p>
+    </div>
+
+    <script src="js/app-student.js"></script>
+</body>
+</html>
