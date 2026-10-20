@@ -1,0 +1,292 @@
+:root {
+    --kahoot-purple: #46178f;
+    --kahoot-purple-dark: #2c0e5a;
+    --kahoot-red: #eb1343;
+    --kahoot-blue: #1368ce;
+    --kahoot-yellow: #d89e00;
+    --kahoot-green: #26890c;
+    --bg-color: #f2f4f8;
+    --card-bg: #ffffff;
+    --text-main: #222;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Montserrat', 'Segoe UI', Tahoma, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.hidden { display: none !important; }
+
+/* ===== Navbar ===== */
+.navbar {
+    background-color: var(--kahoot-purple);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 40px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+.logo { font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.logo-icon { font-size: 1.8rem; }
+.nav-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+.tab-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.tab-btn.active, .tab-btn:hover {
+    background: white;
+    color: var(--kahoot-purple);
+}
+
+/* ===== Contenedor ===== */
+.container { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
+.tab-content { display: none; animation: fadeIn 0.4s ease; }
+.tab-content.active { display: block; }
+h1, h2, h3, h4 { color: #333; }
+h2 { font-size: 1.8rem; margin-bottom: 25px; font-weight: 700; }
+
+/* ===== Formularios ===== */
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; }
+input[type="text"], input[type="number"], textarea, select {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: 'Montserrat', sans-serif;
+    background-color: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--kahoot-purple);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(70,23,143,0.1);
+}
+
+/* ===== Tarjetas de eventos ===== */
+.builder-card {
+    background: #fbfbfb;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #e1e8ed;
+    border-left: 6px solid var(--kahoot-purple);
+    margin-bottom: 20px;
+}
+.builder-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.builder-card h4 { margin: 0; font-size: 1.1rem; }
+.options-grid { display: flex; flex-direction: column; gap: 10px; }
+
+/* ===== Botones ===== */
+.btn {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, background-color 0.2s;
+    font-size: 1rem;
+    font-family: 'Montserrat', sans-serif;
+}
+.btn:active { transform: translateY(2px); }
+.btn-primary { background: var(--kahoot-blue); color: white; }
+.btn-primary:hover { background: #115cb8; }
+.btn-success { background: var(--kahoot-green); color: white; }
+.btn-success:hover { background: #1f7009; }
+.btn-block { width: 100%; margin-top: 10px; }
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+}
+
+/* ===== Lobby ===== */
+.lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 20px; }
+.qr-box, .players-box {
+    background: var(--card-bg);
+    padding: 25px;
+    border-radius: 12px;
+    text-align: center;
+    border: 2px solid #e1e8ed;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+.qr-box h3, .players-box h3 { color: var(--kahoot-purple); }
+#qrcode { display: flex; justify-content: center; margin: 20px 0; }
+.qr-hint { color: #666; font-size: 0.9rem; }
+.players-chips {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+    min-height: 100px;
+}
+.players-chips li {
+    background: white;
+    border: 2px solid var(--kahoot-blue);
+    color: var(--kahoot-blue);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+}
+
+/* ===== Podio ===== */
+.podium-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    height: 350px;
+    margin: 40px 0;
+    gap: 20px;
+}
+.podium-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 150px;
+}
+.bar {
+    width: 100%;
+    color: white;
+    font-weight: 900;
+    text-align: center;
+    padding-top: 20px;
+    border-radius: 12px 12px 0 0;
+    box-shadow: inset 0 10px 20px rgba(0,0,0,0.15);
+    animation: riseUp 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-size: 1.5rem;
+}
+.bar-1 { height: 200px; background: var(--kahoot-yellow); }
+.bar-2 { height: 150px; background: #94a3b8; }
+.bar-3 { height: 110px; background: #b45309; }
+.avatar-badge { font-size: 2.8rem; margin-bottom: 8px; animation: bounce 1.5s infinite alternate; }
+.player-name { font-weight: 800; font-size: 1rem; margin-top: 5px; color: var(--kahoot-purple-dark); text-align: center; }
+.player-score { font-weight: 700; color: #666; font-size: 0.9rem; }
+
+/* ===== Tabla ===== */
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-top: 20px;
+}
+.leaderboard-table th, .leaderboard-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #edf2f7;
+    font-size: 0.95rem;
+}
+.leaderboard-table th { background: var(--kahoot-purple); color: white; font-weight: 700; }
+.leaderboard-table tr:hover { background: #f7f3ff; }
+
+/* ===== Timer ===== */
+.timer-circle {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--kahoot-purple);
+    background: #f0f3f8;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid var(--kahoot-purple);
+    margin: 0 auto 15px;
+}
+
+.badge {
+    display: inline-block;
+    background: var(--kahoot-purple);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ===== Vista del estudiante ===== */
+.student-body {
+    background: linear-gradient(135deg, var(--kahoot-purple) 0%, var(--kahoot-purple-dark) 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.student-card {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    max-width: 450px;
+    width: 100%;
+    text-align: center;
+}
+.kahoot-logo {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--kahoot-purple);
+    margin-bottom: 10px;
+}
+.student-card h2 { color: var(--kahoot-purple); }
+.student-options { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.student-options .btn {
+    padding: 16px;
+    font-size: 1rem;
+    background: var(--kahoot-blue);
+    color: white;
+    border-radius: 8px;
+    text-align: left;
+    transition: transform 0.15s;
+}
+.student-options .btn:hover { transform: scale(1.02); background: #115cb8; }
+.student-footer { margin-top: 25px; font-size: 0.75rem; color: #999; }
+.status-icon { font-size: 4rem; margin: 20px 0; }
+
+/* ===== Animaciones ===== */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes riseUp { from { height: 0; } }
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    .navbar { flex-direction: column; padding: 15px; }
+    .lobby-grid { grid-template-columns: 1fr; }
+    .podium-container { height: auto; flex-direction: column; align-items: center; }
+    .podium-step { width: 100%; max-width: 280px; }
+    .bar { height: 60px !important; border-radius: 12px; padding-top: 15px; }
+    .leaderboard-table { font-size: 0.8rem; }
+    .leaderboard-table th, .leaderboard-table td { padding: 8px; }
+}
