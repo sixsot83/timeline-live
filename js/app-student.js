@@ -17,11 +17,10 @@ let currentActivityId = null;
 let currentStudentName = '';
 let currentActivityData = null;
 let timerInterval = null;
+let transitionInterval = null;
 
-// Colores estilo Kahoot para las opciones
 const optionColors = ['opt-0', 'opt-1', 'opt-2', 'opt-0', 'opt-1', 'opt-2'];
 
-// Auto-completar PIN si viene en la URL del QR
 window.onload = function() {
     const urlParams = new URLSearchParams(window.location.search);
     const actId = urlParams.get('activityId');
@@ -43,11 +42,9 @@ function joinGame() {
 
     currentStudentName = name;
 
-    // Si viene actividad por URL o se busca por el PIN
     if (currentActivityId) {
         connectToSession(currentActivityId);
     } else {
-        // Buscar actividad por el PIN
         database.ref('activities').orderByChild('pin').equalTo(pin).once('value', snapshot => {
             const data = snapshot.val();
             if (data) {
@@ -60,10 +57,11 @@ function joinGame() {
     }
 }
 
-// Conectar a la sesión y escuchar estado en tiempo real
+// Conectar a la sesión y escuchar eventos en tiempo real del instructor
 function connectToSession(actId) {
-    // Registrar jugador inicial
     const studentKey = currentStudentName.replace(/[\s.#$\[\]]/g, '_');
+    
+    // Inicializar registro del estudiante
     database.ref(`sessions/${actId}/players/${studentKey}`).update({
         name: currentStudentName,
         score: 0,
@@ -71,31 +69,46 @@ function connectToSession(actId) {
         incorrect: 0
     });
 
-    // Cambiar a sala de espera
     document.getElementById('join-screen').classList.add('hidden');
     document.getElementById('waiting-lobby-screen').classList.remove('hidden');
 
-    // Obtener datos de la actividad (preguntas)
+    // Cargar estructura completa de la actividad
     database.ref('activities/' + actId).once('value', snapshot => {
         currentActivityData = snapshot.val();
     });
 
-    // Escuchar el estado de inicio en vivo
-    database.ref('sessions/' + actId + '/status').on('value', snapshot => {
-        const status = snapshot.val();
-        if (status === 'active') {
+    // Escuchar cambios de evento o estado mandados por el instructor
+    database.ref('sessions/' + actId).on('value', snapshot => {
+        const sessionData = snapshot.val();
+        if (!sessionData) return;
+
+        if (sessionData.status === 'active') {
+            const currentEventIdx = sessionData.currentEventIndex || 0;
+            
+            // Ocultar todas las pantallas intermedias
             document.getElementById('waiting-lobby-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.remove('hidden');
-            loadQuestion(0);
+            document.getElementById('transition-screen').classList.add('hidden');
+            document.getElementById('feedback-screen').classList.add('hidden');
+            document.getElementById('final-screen').classList.add('hidden');
+
+            loadQuestion(currentEventIdx);
+        } else if (sessionData.status === 'finished') {
+            showFinalResults(actId, studentKey);
         }
     });
 }
 
-// Cargar pregunta
+// Cargar la pregunta correspondiente al evento actual
 function loadQuestion(eventIndex) {
     if (!currentActivityData || !currentActivityData.events) return;
 
-    const event = currentActivityData.events[eventIndex || 0];
+    // Si pasamos del último evento, mostrar resultados finales
+    if (eventIndex >= currentActivityData.events.length) {
+        database.ref(`sessions/${currentActivityId}`).update({ status: 'finished' });
+        return;
+    }
+
+    const event = currentActivityData.events[eventIndex];
     document.getElementById('event-badge').innerText = event.year || `Evento ${eventIndex + 1}`;
     document.getElementById('question-text').innerText = event.question;
 
@@ -110,10 +123,11 @@ function loadQuestion(eventIndex) {
         container.appendChild(btn);
     });
 
+    document.getElementById('game-screen').classList.remove('hidden');
     startTimer(currentActivityData.timer || 30, event.correctIndex);
 }
 
-// Temporizador
+// Temporizador de la pregunta activa
 function startTimer(seconds, correctIndex) {
     let timeLeft = seconds;
     const timerEl = document.getElementById('timer-display');
@@ -131,7 +145,7 @@ function startTimer(seconds, correctIndex) {
     }, 1000);
 }
 
-// Seleccionar y guardar respuesta
+// Registrar respuesta del estudiante
 function selectAnswer(selectedIndex, correctIndex) {
     if (timerInterval) clearInterval(timerInterval);
 
@@ -142,7 +156,6 @@ function selectAnswer(selectedIndex, correctIndex) {
     const points = isCorrect ? 1000 : 0;
     const studentKey = currentStudentName.replace(/[\s.#$\[\]]/g, '_');
 
-    // Actualizar datos en Firebase
     const playerRef = database.ref(`sessions/${currentActivityId}/players/${studentKey}`);
     playerRef.once('value').then(snapshot => {
         const currentData = snapshot.val() || {};
@@ -158,7 +171,6 @@ function selectAnswer(selectedIndex, correctIndex) {
         });
     });
 
-    // Feedback visual al aprendiz
     if (isCorrect) {
         document.getElementById('feedback-title').innerText = "¡Correcto! 👏";
         document.getElementById('feedback-icon').innerText = "✅";
@@ -166,4 +178,34 @@ function selectAnswer(selectedIndex, correctIndex) {
         document.getElementById('feedback-title').innerText = "¡Incorrecto! ❌";
         document.getElementById('feedback-icon').innerText = "⚠️";
     }
+}
+
+// Mostrar pantalla con puntuación total y posición final calculada del ranking
+function showFinalResults(actId, studentKey) {
+    document.getElementById('game-screen').classList.add('hidden');
+    document.getElementById('feedback-screen').classList.add('hidden');
+    document.getElementById('waiting-lobby-screen').classList.add('hidden');
+    document.getElementById('transition-screen').classList.add('hidden');
+    document.getElementById('final-screen').classList.remove('hidden');
+
+    database.ref(`sessions/${actId}/players`).once('value', snapshot => {
+        const playersObj = snapshot.val() || {};
+        let playersArray = Object.keys(playersObj).map(key => playersObj[key]);
+
+        // Ordenar de mayor a menor puntuación
+        playersArray.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+        let myScore = 0;
+        let myRank = 1;
+
+        playersArray.forEach((p, index) => {
+            if (p.name === currentStudentName) {
+                myScore = p.score || 0;
+                myRank = index + 1;
+            }
+        });
+
+        document.getElementById('final-score').innerText = `${myScore} pts`;
+        document.getElementById('final-position').innerText = `#${myRank} de ${playersArray.length} participantes`;
+    });
 }
