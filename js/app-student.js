@@ -17,7 +17,7 @@ let currentActivityId = null;
 let currentStudentName = '';
 let currentActivityData = null;
 let timerInterval = null;
-let transitionInterval = null;
+let lastProcessedEventIndex = -1; // Control para evitar bucles en el mismo evento
 
 const optionColors = ['opt-0', 'opt-1', 'opt-2', 'opt-0', 'opt-1', 'opt-2'];
 
@@ -57,11 +57,10 @@ function joinGame() {
     }
 }
 
-// Conectar a la sesión y escuchar eventos en tiempo real del instructor
+// Conectar a la sesión y escuchar en tiempo real
 function connectToSession(actId) {
     const studentKey = currentStudentName.replace(/[\s.#$\[\]]/g, '_');
     
-    // Inicializar registro del estudiante
     database.ref(`sessions/${actId}/players/${studentKey}`).update({
         name: currentStudentName,
         score: 0,
@@ -72,43 +71,49 @@ function connectToSession(actId) {
     document.getElementById('join-screen').classList.add('hidden');
     document.getElementById('waiting-lobby-screen').classList.remove('hidden');
 
-    // Cargar estructura completa de la actividad
+    // Cargar los datos de la actividad (preguntas)
     database.ref('activities/' + actId).once('value', snapshot => {
         currentActivityData = snapshot.val();
     });
 
-    // Escuchar cambios de evento o estado mandados por el instructor
+    // Escuchar cambios de estado o de evento actual en la sesión
     database.ref('sessions/' + actId).on('value', snapshot => {
         const sessionData = snapshot.val();
         if (!sessionData) return;
 
         if (sessionData.status === 'active') {
-            const currentEventIdx = sessionData.currentEventIndex || 0;
+            const currentEventIdx = sessionData.currentEventIndex !== undefined ? sessionData.currentEventIndex : 0;
             
-            // Ocultar todas las pantallas intermedias
-            document.getElementById('waiting-lobby-screen').classList.add('hidden');
-            document.getElementById('transition-screen').classList.add('hidden');
-            document.getElementById('feedback-screen').classList.add('hidden');
-            document.getElementById('final-screen').classList.add('hidden');
-
-            loadQuestion(currentEventIdx);
+            // Si cambió de evento, cargarlo en pantalla
+            if (currentEventIdx !== lastProcessedEventIndex) {
+                lastProcessedEventIndex = currentEventIdx;
+                loadQuestion(currentEventIdx);
+            }
         } else if (sessionData.status === 'finished') {
             showFinalResults(actId, studentKey);
         }
     });
 }
 
-// Cargar la pregunta correspondiente al evento actual
+// Cargar la pregunta del evento actual
 function loadQuestion(eventIndex) {
     if (!currentActivityData || !currentActivityData.events) return;
 
-    // Si pasamos del último evento, mostrar resultados finales
+    // Si ya no hay más eventos, finalizar la actividad
     if (eventIndex >= currentActivityData.events.length) {
         database.ref(`sessions/${currentActivityId}`).update({ status: 'finished' });
         return;
     }
 
     const event = currentActivityData.events[eventIndex];
+    
+    // Ocultar pantallas anteriores
+    document.getElementById('waiting-lobby-screen').classList.add('hidden');
+    document.getElementById('transition-screen').classList.add('hidden');
+    document.getElementById('feedback-screen').classList.add('hidden');
+    document.getElementById('final-screen').classList.add('hidden');
+    document.getElementById('game-screen').classList.remove('hidden');
+
     document.getElementById('event-badge').innerText = event.year || `Evento ${eventIndex + 1}`;
     document.getElementById('question-text').innerText = event.question;
 
@@ -119,16 +124,15 @@ function loadQuestion(eventIndex) {
         const btn = document.createElement('button');
         btn.className = `opt-btn ${optionColors[idx % optionColors.length]}`;
         btn.innerText = optText;
-        btn.onclick = () => selectAnswer(idx, event.correctIndex);
+        btn.onclick = () => selectAnswer(idx, event.correctIndex, eventIndex);
         container.appendChild(btn);
     });
 
-    document.getElementById('game-screen').classList.remove('hidden');
-    startTimer(currentActivityData.timer || 30, event.correctIndex);
+    startTimer(currentActivityData.timer || 30, event.correctIndex, eventIndex);
 }
 
-// Temporizador de la pregunta activa
-function startTimer(seconds, correctIndex) {
+// Temporizador de cuenta regresiva
+function startTimer(seconds, correctIndex, eventIndex) {
     let timeLeft = seconds;
     const timerEl = document.getElementById('timer-display');
     timerEl.innerText = timeLeft;
@@ -140,19 +144,20 @@ function startTimer(seconds, correctIndex) {
         timerEl.innerText = timeLeft;
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            selectAnswer(-1, correctIndex); // Tiempo agotado
+            // Si el tiempo se agota y no respondió, cuenta como no respondido / incorrecto
+            selectAnswer(-1, correctIndex, eventIndex, true);
         }
     }, 1000);
 }
 
-// Registrar respuesta del estudiante
-function selectAnswer(selectedIndex, correctIndex) {
+// Registrar respuesta y avanzar al siguiente evento
+function selectAnswer(selectedIndex, correctIndex, eventIndex, isTimeout = false) {
     if (timerInterval) clearInterval(timerInterval);
 
     document.getElementById('game-screen').classList.add('hidden');
     document.getElementById('feedback-screen').classList.remove('hidden');
 
-    const isCorrect = (selectedIndex === correctIndex);
+    const isCorrect = (!isTimeout && selectedIndex === correctIndex);
     const points = isCorrect ? 1000 : 0;
     const studentKey = currentStudentName.replace(/[\s.#$\[\]]/g, '_');
 
@@ -161,7 +166,7 @@ function selectAnswer(selectedIndex, correctIndex) {
         const currentData = snapshot.val() || {};
         const newScore = (currentData.score || 0) + points;
         const newCorrect = (currentData.correct || 0) + (isCorrect ? 1 : 0);
-        const newIncorrect = (currentData.incorrect || 0) + (isCorrect ? 0 : 1);
+        const newIncorrect = (currentData.incorrect || 0) + (!isCorrect ? 1 : 0);
 
         playerRef.update({
             score: newScore,
@@ -171,17 +176,38 @@ function selectAnswer(selectedIndex, correctIndex) {
         });
     });
 
-    if (isCorrect) {
-        document.getElementById('feedback-title').innerText = "¡Correcto! 👏";
+    if (isTimeout) {
+        document.getElementById('feedback-title').innerText = "¡Tiempo Agotado! ⏰";
+        document.getElementById('feedback-icon').innerText = "⌛";
+    } else if (isCorrect) {
+        document.getElementById('feedback-title').innerText = "¡Correcto! 👏 (+1000 pts)";
         document.getElementById('feedback-icon').innerText = "✅";
     } else {
         document.getElementById('feedback-title').innerText = "¡Incorrecto! ❌";
         document.getElementById('feedback-icon').innerText = "⚠️";
     }
+
+    // Programar el salto automático al siguiente evento transcurridos 3 segundos de feedback
+    setTimeout(() => {
+        const nextEventIndex = eventIndex + 1;
+        if (currentActivityData && currentActivityData.events && nextEventIndex < currentActivityData.events.length) {
+            // Actualizar el índice del evento en Firebase para sincronizar a todos los aprendices
+            database.ref(`sessions/${currentActivityId}`).update({
+                currentEventIndex: nextEventIndex
+            });
+        } else {
+            // Si era el último evento, marcar sesión como finalizada
+            database.ref(`sessions/${currentActivityId}`).update({
+                status: 'finished'
+            });
+        }
+    }, 3000);
 }
 
-// Mostrar pantalla con puntuación total y posición final calculada del ranking
+// Mostrar resultados finales, puntuación y posición
 function showFinalResults(actId, studentKey) {
+    if (timerInterval) clearInterval(timerInterval);
+
     document.getElementById('game-screen').classList.add('hidden');
     document.getElementById('feedback-screen').classList.add('hidden');
     document.getElementById('waiting-lobby-screen').classList.add('hidden');
