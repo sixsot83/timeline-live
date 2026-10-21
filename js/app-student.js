@@ -1,4 +1,6 @@
-// CONFIGURACIÓN DE FIREBASE
+// ==========================================
+// CONFIGURACIÓN DE FIREBASE (APRENDIZ)
+// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyBJwA-Uaqh8DI23ejLlqF3aKTJEj5jpI7Y",
   authDomain: "timelive-live.firebaseapp.com",
@@ -17,7 +19,7 @@ let currentActivityId = null;
 let currentStudentName = '';
 let currentActivityData = null;
 let timerInterval = null;
-let lastProcessedEventIndex = -1; // Control para evitar bucles en el mismo evento
+let lastProcessedEventIndex = -1;
 
 const optionColors = ['opt-0', 'opt-1', 'opt-2', 'opt-0', 'opt-1', 'opt-2'];
 
@@ -57,7 +59,6 @@ function joinGame() {
     }
 }
 
-// Conectar a la sesión y escuchar en tiempo real
 function connectToSession(actId) {
     const studentKey = currentStudentName.replace(/[\s.#$\[\]]/g, '_');
     
@@ -71,12 +72,10 @@ function connectToSession(actId) {
     document.getElementById('join-screen').classList.add('hidden');
     document.getElementById('waiting-lobby-screen').classList.remove('hidden');
 
-    // Cargar los datos de la actividad (preguntas)
     database.ref('activities/' + actId).once('value', snapshot => {
         currentActivityData = snapshot.val();
     });
 
-    // Escuchar cambios de estado o de evento actual en la sesión
     database.ref('sessions/' + actId).on('value', snapshot => {
         const sessionData = snapshot.val();
         if (!sessionData) return;
@@ -84,7 +83,6 @@ function connectToSession(actId) {
         if (sessionData.status === 'active') {
             const currentEventIdx = sessionData.currentEventIndex !== undefined ? sessionData.currentEventIndex : 0;
             
-            // Si cambió de evento, cargarlo en pantalla
             if (currentEventIdx !== lastProcessedEventIndex) {
                 lastProcessedEventIndex = currentEventIdx;
                 loadQuestion(currentEventIdx);
@@ -95,11 +93,9 @@ function connectToSession(actId) {
     });
 }
 
-// Cargar la pregunta del evento actual
 function loadQuestion(eventIndex) {
     if (!currentActivityData || !currentActivityData.events) return;
 
-    // Si ya no hay más eventos, finalizar la actividad
     if (eventIndex >= currentActivityData.events.length) {
         database.ref(`sessions/${currentActivityId}`).update({ status: 'finished' });
         return;
@@ -107,7 +103,6 @@ function loadQuestion(eventIndex) {
 
     const event = currentActivityData.events[eventIndex];
     
-    // Ocultar pantallas anteriores
     document.getElementById('waiting-lobby-screen').classList.add('hidden');
     document.getElementById('transition-screen').classList.add('hidden');
     document.getElementById('feedback-screen').classList.add('hidden');
@@ -124,15 +119,14 @@ function loadQuestion(eventIndex) {
         const btn = document.createElement('button');
         btn.className = `opt-btn ${optionColors[idx % optionColors.length]}`;
         btn.innerText = optText;
-        btn.onclick = () => selectAnswer(idx, event.correctIndex, eventIndex);
+        btn.onclick = () => selectAnswer(idx, event.correctIndex, event.options);
         container.appendChild(btn);
     });
 
-    startTimer(currentActivityData.timer || 30, event.correctIndex, eventIndex);
+    startTimer(currentActivityData.timer || 30);
 }
 
-// Temporizador de cuenta regresiva
-function startTimer(seconds, correctIndex, eventIndex) {
+function startTimer(seconds) {
     let timeLeft = seconds;
     const timerEl = document.getElementById('timer-display');
     timerEl.innerText = timeLeft;
@@ -144,20 +138,22 @@ function startTimer(seconds, correctIndex, eventIndex) {
         timerEl.innerText = timeLeft;
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            // Si el tiempo se agota y no respondió, cuenta como no respondido / incorrecto
-            selectAnswer(-1, correctIndex, eventIndex, true);
+            // Si expira el tiempo sin responder, mostrar feedback de tiempo agotado
+            if (!document.getElementById('game-screen').classList.contains('hidden')) {
+                showFeedbackTimeout();
+            }
         }
     }, 1000);
 }
 
-// Registrar respuesta y avanzar al siguiente evento
-function selectAnswer(selectedIndex, correctIndex, eventIndex, isTimeout = false) {
+// Al responder antes de tiempo: se oculta la pregunta y queda en espera del cronómetro
+function selectAnswer(selectedIndex, correctIndex, options) {
     if (timerInterval) clearInterval(timerInterval);
 
     document.getElementById('game-screen').classList.add('hidden');
     document.getElementById('feedback-screen').classList.remove('hidden');
 
-    const isCorrect = (!isTimeout && selectedIndex === correctIndex);
+    const isCorrect = (selectedIndex === correctIndex);
     const points = isCorrect ? 1000 : 0;
     const studentKey = currentStudentName.replace(/[\s.#$\[\]]/g, '_');
 
@@ -176,35 +172,26 @@ function selectAnswer(selectedIndex, correctIndex, eventIndex, isTimeout = false
         });
     });
 
-    if (isTimeout) {
-        document.getElementById('feedback-title').innerText = "¡Tiempo Agotado! ⏰";
-        document.getElementById('feedback-icon').innerText = "⌛";
-    } else if (isCorrect) {
+    if (isCorrect) {
         document.getElementById('feedback-title').innerText = "¡Correcto! 👏 (+1000 pts)";
         document.getElementById('feedback-icon').innerText = "✅";
+        document.getElementById('feedback-msg').innerText = "Respuesta registrada. Esperando a que termine el tiempo del evento...";
     } else {
+        const correctText = options[correctIndex];
         document.getElementById('feedback-title').innerText = "¡Incorrecto! ❌";
         document.getElementById('feedback-icon').innerText = "⚠️";
+        document.getElementById('feedback-msg').innerHTML = `Respuesta registrada.<br><strong>La opción correcta era:</strong> ${correctText}`;
     }
-
-    // Programar el salto automático al siguiente evento transcurridos 3 segundos de feedback
-    setTimeout(() => {
-        const nextEventIndex = eventIndex + 1;
-        if (currentActivityData && currentActivityData.events && nextEventIndex < currentActivityData.events.length) {
-            // Actualizar el índice del evento en Firebase para sincronizar a todos los aprendices
-            database.ref(`sessions/${currentActivityId}`).update({
-                currentEventIndex: nextEventIndex
-            });
-        } else {
-            // Si era el último evento, marcar sesión como finalizada
-            database.ref(`sessions/${currentActivityId}`).update({
-                status: 'finished'
-            });
-        }
-    }, 3000);
 }
 
-// Mostrar resultados finales, puntuación y posición
+function showFeedbackTimeout() {
+    document.getElementById('game-screen').classList.add('hidden');
+    document.getElementById('feedback-screen').classList.remove('hidden');
+    document.getElementById('feedback-title').innerText = "¡Tiempo Agotado! ⏰";
+    document.getElementById('feedback-icon').innerText = "⌛";
+    document.getElementById('feedback-msg').innerText = "No respondiste a tiempo.";
+}
+
 function showFinalResults(actId, studentKey) {
     if (timerInterval) clearInterval(timerInterval);
 
@@ -218,7 +205,6 @@ function showFinalResults(actId, studentKey) {
         const playersObj = snapshot.val() || {};
         let playersArray = Object.keys(playersObj).map(key => playersObj[key]);
 
-        // Ordenar de mayor a menor puntuación
         playersArray.sort((a, b) => (b.score || 0) - (a.score || 0));
 
         let myScore = 0;
