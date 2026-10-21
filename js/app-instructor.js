@@ -1,5 +1,5 @@
 // ==========================================
-// CONFIGURACIÓN DE FIREBASE
+// CONFIGURACIÓN DE FIREBASE (INSTRUCTOR)
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyBJwA-Uaqh8DI23ejLlqF3aKTJEj5jpI7Y",
@@ -17,6 +17,8 @@ const database = firebase.database();
 
 let currentActivityId = null;
 let currentPin = null;
+let activityDataGlobal = null;
+let instructorInterval = null;
 
 // Gestor de Pestañas
 function switchTab(tabId) {
@@ -28,7 +30,7 @@ function switchTab(tabId) {
     if (activeTabBtn) activeTabBtn.classList.add('active');
 }
 
-// Generar plantilla HTML para cada evento
+// Plantilla para los eventos en el formulario
 function createEventCardHTML(index, data = {}) {
     const year = data.year || '';
     const desc = data.description || '';
@@ -51,7 +53,7 @@ function createEventCardHTML(index, data = {}) {
     return `
         <div class="builder-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <h4 style="margin:0;">Evento <span class="event-number">${index}</span></h4>
-            <button type="button" class="btn btn-danger btn-sm" onclick="removeEventCard(this)" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">🗑️ Eliminar Evento</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeEventCard(this)" style="background:#dc3545; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">🗑️ Eliminar</button>
         </div>
         <div class="form-group">
             <input type="text" placeholder="Fase / Año (Ej: Fase 1 - Análisis)" value="${year}" class="ev-year" required>
@@ -63,7 +65,7 @@ function createEventCardHTML(index, data = {}) {
             <input type="text" placeholder="Pregunta para el aprendiz" value="${question}" class="ev-q" required>
         </div>
         <div class="form-group">
-            <label style="font-size:0.9rem; margin-bottom:6px; display:block; color:#555;">Opciones de respuesta (Selecciona el radio button de la CORRECTA):</label>
+            <label style="font-size:0.9rem; margin-bottom:6px; display:block; color:#555;">Opciones (Selecciona la correcta):</label>
             <div class="options-container">
                 ${optionsHTML}
             </div>
@@ -72,7 +74,6 @@ function createEventCardHTML(index, data = {}) {
     `;
 }
 
-// Agregar opción adicional a un evento específico
 function addOptionToCard(btn) {
     const card = btn.closest('.builder-card');
     const optionsContainer = card.querySelector('.options-container');
@@ -90,7 +91,6 @@ function addOptionToCard(btn) {
     optionsContainer.appendChild(row);
 }
 
-// Eliminar opción secundaria
 function removeOption(btn) {
     const row = btn.closest('.option-row');
     const container = row.closest('.options-container');
@@ -101,7 +101,6 @@ function removeOption(btn) {
     row.remove();
 }
 
-// Agregar nueva tarjeta de evento completa
 function addEventCard(data = null) {
     const builder = document.getElementById('events-builder');
     const count = builder.children.length + 1;
@@ -113,7 +112,6 @@ function addEventCard(data = null) {
     updateEventNumbers();
 }
 
-// Eliminar tarjeta de evento
 function removeEventCard(button) {
     const card = button.closest('.builder-card');
     const builder = document.getElementById('events-builder');
@@ -127,7 +125,6 @@ function removeEventCard(button) {
     updateEventNumbers();
 }
 
-// Reordenar números y nombres de los radios de cada evento
 function updateEventNumbers() {
     const cards = document.querySelectorAll('#events-builder .builder-card');
     cards.forEach((card, idx) => {
@@ -140,13 +137,12 @@ function updateEventNumbers() {
     });
 }
 
-// Generar PIN aleatorio de 6 dígitos
 function generatePIN() {
     const num = Math.floor(100000 + Math.random() * 900000);
     return `${num.toString().substring(0,3)}-${num.toString().substring(3,6)}`;
 }
 
-// Guardar/Actualizar Actividad y generar QR
+// Guardar Actividad
 document.getElementById('timeline-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -164,9 +160,7 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
             const text = row.querySelector('.ev-option').value;
             const radio = row.querySelector('input[type="radio"]');
             options.push(text);
-            if (radio.checked) {
-                correctIndex = oIdx;
-            }
+            if (radio.checked) correctIndex = oIdx;
         });
 
         events.push({
@@ -178,25 +172,21 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
         });
     });
 
-    if (!currentActivityId) {
-        currentActivityId = 'act_' + Date.now();
-    }
-    if (!currentPin) {
-        currentPin = generatePIN();
-    }
+    if (!currentActivityId) currentActivityId = 'act_' + Date.now();
+    if (!currentPin) currentPin = generatePIN();
+
+    activityDataGlobal = { title, timer, events, pin: currentPin };
 
     database.ref('activities/' + currentActivityId).set({
-        title: title,
-        timer: timer,
-        events: events,
-        pin: currentPin,
+        ...activityDataGlobal,
         updatedAt: new Date().toISOString()
     });
 
     database.ref('sessions/' + currentActivityId).update({
         status: 'waiting',
         pin: currentPin,
-        currentEventIndex: 0
+        currentEventIndex: 0,
+        mode: 'auto'
     }).then(() => {
         document.getElementById('session-pin').innerText = currentPin;
 
@@ -216,8 +206,8 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
     });
 });
 
-// Iniciar Sesión en Vivo
-function startTimelineSession() {
+// Iniciar Sesión (Modo Automático o Manual)
+function startTimelineSession(mode) {
     if (!currentActivityId) {
         alert("Primero debes configurar y guardar una actividad.");
         return;
@@ -226,13 +216,115 @@ function startTimelineSession() {
     database.ref('sessions/' + currentActivityId).update({
         status: 'active',
         currentEventIndex: 0,
+        mode: mode, // 'auto' o 'manual'
         startedAt: new Date().toISOString()
     }).then(() => {
-        alert("🚀 ¡Actividad Iniciada! Los estudiantes ya pueden responder.");
+        alert(`🚀 Actividad iniciada en modo: ${mode.toUpperCase()}`);
+        openInstructorControlPanel(mode);
     });
 }
 
-// Escuchar estudiantes conectados
+// Abrir Panel de Monitoreo del Instructor (Ventana flotante / modal o sección)
+function openInstructorControlPanel(mode) {
+    let controlModal = document.getElementById('instructor-control-modal');
+    if (!controlModal) {
+        controlModal = document.createElement('div');
+        controlModal.id = 'instructor-control-modal';
+        controlModal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; justify-content:center; align-items:center;';
+        document.body.appendChild(controlModal);
+    }
+
+    controlModal.innerHTML = `
+        <div style="background:white; padding:30px; border-radius:12px; width:90%; max-width:600px; text-align:left; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+            <h2>🎮 Panel de Control del Instructor</h2>
+            <p><strong>Modo:</strong> <span style="color:var(--primary); text-transform:uppercase;">${mode}</span></p>
+            <hr style="margin: 15px 0;">
+            <div id="instructor-live-content">Cargando evento actual...</div>
+            <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
+                <span id="instructor-timer-display" style="font-size:1.5rem; font-weight:bold; color:var(--warning);">⏱️ --s</span>
+                ${mode === 'manual' ? `<button class="btn btn-primary" onclick="nextManualEvent()">Siguiente Pregunta ➡️</button>` : ''}
+                <button class="btn btn-secondary" onclick="closeInstructorPanel()">Cerrar Panel</button>
+            </div>
+        </div>
+    `;
+
+    monitorInstructorLive(mode);
+}
+
+let activeInstructorTimer = null;
+
+function monitorInstructorLive(mode) {
+    const timerSeconds = activityDataGlobal ? activityDataGlobal.timer : 30;
+
+    database.ref('sessions/' + currentActivityId).on('value', snapshot => {
+        const session = snapshot.val();
+        if (!session || session.status !== 'active') return;
+
+        const idx = session.currentEventIndex || 0;
+        const ev = activityDataGlobal.events[idx];
+
+        if (!ev) {
+            document.getElementById('instructor-live-content').innerHTML = `<h3>¡Actividad Concluida!</h3>`;
+            if (activeInstructorTimer) clearInterval(activeInstructorTimer);
+            return;
+        }
+
+        let optionsHtml = '';
+        ev.options.forEach((opt, oIdx) => {
+            const isCorrect = (oIdx === ev.correctIndex);
+            const style = isCorrect ? 'background:#d4edda; border:2px solid #28a745; font-weight:bold;' : 'background:#f8f9fa;';
+            optionsHtml += `<div style="padding:8px; margin:5px 0; border-radius:6px; ${style}">${String.fromCharCode(65 + oIdx)}. ${opt} ${isCorrect ? '✅ (Correcta)' : ''}</div>`;
+        });
+
+        document.getElementById('instructor-live-content').innerHTML = `
+            <span class="badge" style="background:var(--primary); color:white; padding:4px 10px; border-radius:8px;">Evento ${idx + 1} de ${activityDataGlobal.events.length}</span>
+            <h3 style="margin:10px 0;">${ev.question}</h3>
+            <div style="margin: 15px 0;">${optionsHtml}</div>
+        `;
+
+        // Si es automático, gestionar cronómetro local en el panel
+        if (mode === 'auto') {
+            let timeLeft = timerSeconds;
+            document.getElementById('instructor-timer-display').innerText = `⏱️ ${timeLeft}s`;
+
+            if (activeInstructorTimer) clearInterval(activeInstructorTimer);
+            activeInstructorTimer = setInterval(() => {
+                timeLeft--;
+                const timerEl = document.getElementById('instructor-timer-display');
+                if (timerEl) timerEl.innerText = `⏱️ ${timeLeft}s`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(activeInstructorTimer);
+                    if (idx + 1 < activityDataGlobal.events.length) {
+                        database.ref('sessions/' + currentActivityId).update({ currentEventIndex: idx + 1 });
+                    } else {
+                        database.ref('sessions/' + currentActivityId).update({ status: 'finished' });
+                    }
+                }
+            }, 1000);
+        }
+    });
+}
+
+function nextManualEvent() {
+    database.ref('sessions/' + currentActivityId).once('value', snapshot => {
+        const session = snapshot.val();
+        const idx = session.currentEventIndex || 0;
+        if (idx + 1 < activityDataGlobal.events.length) {
+            database.ref('sessions/' + currentActivityId).update({ currentEventIndex: idx + 1 });
+        } else {
+            database.ref('sessions/' + currentActivityId).update({ status: 'finished' });
+            alert("Actividad finalizada.");
+        }
+    });
+}
+
+function closeInstructorPanel() {
+    if (activeInstructorTimer) clearInterval(activeInstructorTimer);
+    const modal = document.getElementById('instructor-control-modal');
+    if (modal) modal.remove();
+}
+
 function listenToParticipants(actId) {
     database.ref('sessions/' + actId + '/players').on('value', (snapshot) => {
         const players = snapshot.val() || {};
@@ -256,7 +348,6 @@ function listenToParticipants(actId) {
     });
 }
 
-// Actualizar Estadísticas, Podio y Tabla
 function updateAnalyticsAndPodium(players) {
     if (players.length === 0) return;
 
@@ -286,7 +377,7 @@ function updateAnalyticsAndPodium(players) {
     }
     if (players[1]) {
         document.getElementById('p2-name').innerText = players[1].name;
-        document.getElementById('p2-score').innerText =`${players[1].score || 0} pts`;
+        document.getElementById('p2-score').innerText = `${players[1].score || 0} pts`;
     }
     if (players[2]) {
         document.getElementById('p3-name').innerText = players[2].name;
@@ -308,7 +399,6 @@ function updateAnalyticsAndPodium(players) {
     });
 }
 
-// Cargar estado inicial al abrir la página
 window.onload = function() {
     const urlParams = new URLSearchParams(window.location.search);
     const activityId = urlParams.get('id');
@@ -321,6 +411,7 @@ window.onload = function() {
                 document.getElementById('activity-title').value = data.title || '';
                 document.getElementById('event-timer').value = data.timer || 30;
                 currentPin = data.pin || generatePIN();
+                activityDataGlobal = data;
                 
                 const builder = document.getElementById('events-builder');
                 builder.innerHTML = '';
@@ -334,7 +425,6 @@ window.onload = function() {
             }
         });
     } else {
-        // Cargar un evento limpio por defecto al iniciar
         addEventCard();
     }
 };
