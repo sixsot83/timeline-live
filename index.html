@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Live - Panel del Instructor</title>
+    <!-- Librería para generación dinámica de Código QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Navegación por Pestañas -->
+    <nav class="navbar">
+        <div class="logo">⏳ TimelineLive</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-create')">1. Configurar Actividad</button>
+            <button class="tab-btn" onclick="switchTab('tab-lobby')">2. Sala en Vivo (QR)</button>
+            <button class="tab-btn" onclick="switchTab('tab-analytics')">3. Resumen y Podio</button>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Pestaña 1: Configuración de la Actividad y Tiempo -->
+        <section id="tab-create" class="tab-content active">
+            <h2>Configurar Nueva Línea de Tiempo</h2>
+            <form id="timeline-form">
+                <div class="form-group">
+                    <label>Título de la Actividad:</label>
+                    <input type="text" id="activity-title" value="Evolución del Desarrollo de Software - SENA" required>
+                </div>
+                <div class="form-group">
+                    <label>Tiempo por Evento (segundos):</label>
+                    <input type="number" id="event-timer" value="30" min="5" max="120" required>
+                </div>
+
+                <h3>Eventos Cronológicos</h3>
+                <div id="events-builder">
+                    <!-- Evento 1 Preconfigurado -->
+                    <div class="builder-card">
+                        <h4>Evento 1</h4>
+                        <input type="text" placeholder="Fase / Año (Ej: Fase 1 - Análisis)" value="Fase 1 - Análisis" class="ev-year">
+                        <textarea placeholder="Descripción del Evento" class="ev-desc">Se definen los requerimientos del software y el alcance del proyecto.</textarea>
+                        <input type="text" placeholder="Pregunta para el aprendiz" value="¿Cuál es el objetivo principal de esta fase?" class="ev-q">
+                        <input type="text" placeholder="Opción A (Correcta)" value="Comprender y documentar requerimientos" class="ev-o1">
+                        <input type="text" placeholder="Opción B" value="Escribir código en producción" class="ev-o2">
+                        <input type="text" placeholder="Opción C" value="Diseñar la base de datos" class="ev-o3">
+                        <input type="text" placeholder="Opción D" value="Diseñar la base de datos" class="ev-o4">
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-secondary" onclick="addEventCard()">+ Agregar Evento</button>
+                <button type="submit" class="btn btn-primary">Guardar y Abrir Sala</button>
+            </form>
+        </section>
+
+        <!-- Pestaña 2: Sala de Espera y Transmisión en Vivo con QR -->
+        <section id="tab-lobby" class="tab-content">
+            <div class="lobby-header">
+                <h2>¡Escanea el Código QR para Unirte!</h2>
+                <div class="pin-badge">PIN de Sesión: <span id="session-pin">859-421</span></div>
+            </div>
+
+            <div class="lobby-grid">
+                <div class="qr-box">
+                    <div id="qrcode"></div>
+                    <p>Accede desde tu dispositivo móvil</p>
+                </div>
+
+                <div class="players-box">
+                    <h3>Aprendices Conectados (<span id="player-count">0</span>)</h3>
+                    <ul id="players-list" class="players-chips">
+                        <!-- Nombres de estudiantes conectados -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="control-actions">
+                <button class="btn btn-success btn-lg" onclick="startTimelineSession()">🚀 Iniciar Actividad en Vivo</button>
+            </div>
+        </section>
+
+        <!-- Pestaña 3: Resumen Estadístico y Podio -->
+        <section id="tab-analytics" class="tab-content">
+            <!-- Sub-sección A: RESUMEN -->
+            <div class="analytics-section">
+                <h2>📊 Resumen Estadístico de la Actividad</h2>
+                <div class="stats-cards">
+                    <div class="card-stat">
+                        <span class="stat-number" id="stat-participation">88%</span>
+                        <span class="stat-label">Promedio de Participación</span>
+                    </div>
+                    <div class="card-stat success">
+                        <span class="stat-number" id="stat-correct">76%</span>
+                        <span class="stat-label">Respuestas Acertadas</span>
+                    </div>
+                    <div class="card-stat danger">
+                        <span class="stat-number" id="stat-incorrect">24%</span>
+                        <span class="stat-label">Respuestas No Acertadas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-sección B: PODIO ANIMADO -->
+            <div class="analytics-section">
+                <h2>🏆 Podio de Ganadores</h2>
+                <div class="podium-container">
+                    <!-- Segundo Lugar -->
+                    <div class="podium-step step-2">
+                        <div class="avatar-badge silver">
+                            <svg class="trophy-icon" viewBox="0 0 24 24"><path fill="#C0C0C0" d="M12 2A10 10 0 1 0 22 12 10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path fill="#C0C0C0" d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6z"/></svg>
+                            <span>🥈</span>
+                        </div>
+                        <div class="player-name" id="p2-name">María Gómez</div>
+                        <div class="player-score" id="p2-score">2,850 pts</div>
+                        <div class="bar bar-2">2° Lugar</div>
+                    </div>
+
+                    <!-- Primer Lugar -->
+                    <div class="podium-step step-1">
+                        <div class="avatar-badge gold">
+                            <svg class="trophy-icon glow" viewBox="0 0 24 24"><path fill="#FFD700" d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V18H8v2h8v-2h-3v-2.1c2.25-.37 4-2.31 4-4.9V8c0-1.1-.9-2-2-2zM5 8h2v2c0 1.1-.9 2-2 2s-2-.9-2-2V8zm14 2c0 1.1-.9 2-2 2v-2h2z"/></svg>
+                            <span>🏆</span>
+                        </div>
+                        <div class="player-name" id="p1-name">Carlos Rodríguez</div>
+                        <div class="player-score" id="p1-score">3,400 pts</div>
+                        <div class="bar bar-1">1° Lugar</div>
+                    </div>
+
+                    <!-- Tercer Lugar -->
+                    <div class="podium-step step-3">
+                        <div class="avatar-badge bronze">
+                            <svg class="trophy-icon" viewBox="0 0 24 24"><path fill="#CD7F32" d="M12 2A10 10 0 1 0 22 12 10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/></svg>
+                            <span>🥉</span>
+                        </div>
+                        <div class="player-name" id="p3-name">Julián Sotomayor</div>
+                        <div class="player-score" id="p3-score">2,400 pts</div>
+                        <div class="bar bar-3">3° Lugar</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-sección C: TABLA GENERAL DE POSICIONES -->
+            <div class="analytics-section">
+                <h2>📋 Tabla General de Participantes</h2>
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Posición</th>
+                            <th>Nombre Completo</th>
+                            <th>Respuestas Acertadas</th>
+                            <th>No Acertadas</th>
+                            <th>Puntuación Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                        <!-- Se llena dinámicamente con JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- Pie de Página con Créditos de Autor -->
+        <footer class="author-footer">
+            <p>Desarrollado por: <strong>Sixto Manuel Sotomayor García</strong></p>
+            <p>Educador y Curriculum Developer | Formación Profesional y Competencias TIC</p>
+        </footer>
+        
+    </div>
+
+    <script src="js/app-instructor.js"></script>
+</body>
+</html>
