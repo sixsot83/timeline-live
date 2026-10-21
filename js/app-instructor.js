@@ -372,7 +372,6 @@ function generateExcelWorkbook(title, playersData) {
 
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
     
-    // Ajustar anchos de columnas
     worksheet['!cols'] = [
         { wch: 10 },
         { wch: 30 },
@@ -394,31 +393,55 @@ function generateExcelWorkbook(title, playersData) {
 // Guardar/Actualizar Actividad
 document.getElementById('timeline-form').addEventListener('submit', function(e) {
     e.preventDefault();
+    console.log("-> Intentando guardar la actividad...");
 
-    const title = document.getElementById('activity-title').value;
-    const timer = parseInt(document.getElementById('event-timer').value);
-    const controlMode = document.getElementById('control-mode').value;
+    const titleInput = document.getElementById('activity-title');
+    const timerInput = document.getElementById('event-timer');
+    const controlModeInput = document.getElementById('control-mode');
+
+    if (!titleInput || !titleInput.value.trim()) {
+        alert("Por favor ingresa un título para la actividad.");
+        return;
+    }
+
+    const title = titleInput.value.trim();
+    const timer = parseInt(timerInput ? timerInput.value : 30);
+    const controlMode = controlModeInput ? controlModeInput.value : 'auto';
     const cards = document.querySelectorAll('.builder-card');
     
+    if (cards.length === 0) {
+        alert("Debes agregar al menos un evento a la línea de tiempo.");
+        return;
+    }
+
     let events = [];
+
     cards.forEach((card) => {
+        const yearInput = card.querySelector('.ev-year');
+        const descInput = card.querySelector('.ev-desc');
+        const qInput = card.querySelector('.ev-q');
+        
+        if (!yearInput || !descInput || !qInput) return;
+
         const optionRows = card.querySelectorAll('.option-row');
         let options = [];
         let correctIndex = 0;
 
         optionRows.forEach((row, oIdx) => {
-            const text = row.querySelector('.ev-option').value;
+            const textInput = row.querySelector('.ev-option');
             const radio = row.querySelector('input[type="radio"]');
-            options.push(text);
-            if (radio.checked) {
-                correctIndex = oIdx;
+            if (textInput) {
+                options.push(textInput.value.trim());
+                if (radio && radio.checked) {
+                    correctIndex = oIdx;
+                }
             }
         });
 
         events.push({
-            year: card.querySelector('.ev-year').value,
-            description: card.querySelector('.ev-desc').value,
-            question: card.querySelector('.ev-q').value,
+            year: yearInput.value.trim(),
+            description: descInput.value.trim(),
+            question: qInput.value.trim(),
             options: options,
             correctIndex: correctIndex
         });
@@ -440,35 +463,51 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
         updatedAt: new Date().toISOString()
     };
 
-    database.ref('activities/' + currentActivityId).set(activityData).then(() => {
-        currentActivityCache = activityData;
+    console.log("Guardando en Firebase activityId:", currentActivityId);
 
-        return database.ref('sessions/' + currentActivityId).update({
-            status: 'waiting',
-            pin: currentPin,
-            controlMode: controlMode,
-            currentEventIndex: 0
+    database.ref('activities/' + currentActivityId).set(activityData)
+        .then(() => {
+            console.log("Actividad guardada con éxito.");
+            currentActivityCache = activityData;
+
+            return database.ref('sessions/' + currentActivityId).update({
+                status: 'waiting',
+                pin: currentPin,
+                controlMode: controlMode,
+                currentEventIndex: 0
+            });
+        })
+        .then(() => {
+            console.log("Sesión inicializada correctamente.");
+            const pinElement = document.getElementById('session-pin');
+            if (pinElement) pinElement.innerText = currentPin;
+
+            const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+            const studentUrl = `${baseUrl}student.html?activityId=${currentActivityId}&pin=${currentPin}`;
+            console.log("URL generada para el QR:", studentUrl);
+
+            const qrContainer = document.getElementById("qrcode");
+            if (qrContainer) {
+                qrContainer.innerHTML = "";
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(qrContainer, {
+                        text: studentUrl,
+                        width: 180,
+                        height: 180
+                    });
+                } else {
+                    console.error("La librería QRCode no está cargada.");
+                }
+            }
+
+            window.history.pushState({}, '', `?id=${currentActivityId}`);
+            switchTab('tab-lobby');
+            listenToParticipants(currentActivityId);
+        })
+        .catch(error => {
+            console.error("Error crítico al guardar en Firebase:", error);
+            alert("Error al guardar en la base de datos: " + error.message);
         });
-    }).then(() => {
-        document.getElementById('session-pin').innerText = currentPin;
-
-        const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-        const studentUrl = `${baseUrl}/student.html?activityId=${currentActivityId}&pin=${currentPin}`;
-
-        document.getElementById("qrcode").innerHTML = "";
-        new QRCode(document.getElementById("qrcode"), {
-            text: studentUrl,
-            width: 180,
-            height: 180
-        });
-
-        window.history.pushState({}, '', `?id=${currentActivityId}`);
-        switchTab('tab-lobby');
-        listenToParticipants(currentActivityId);
-    }).catch(error => {
-        console.error("Error al guardar la actividad:", error);
-        alert("Hubo un error al guardar la actividad en la base de datos.");
-    });
 });
 
 // Iniciar Sesión en Vivo
@@ -509,7 +548,6 @@ function nextManualEvent() {
                 currentEventIndex: nextIndex
             });
         } else {
-            // Finalizar actividad y guardar automáticamente en el historial
             finishAndArchiveSession();
         }
     });
@@ -537,167 +575,20 @@ function finishAndArchiveSession() {
 
 // Celebración con confeti
 function triggerCelebration() {
-    confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6, x: 0.2 },
-        colors: ['#46178f', '#eb1343', '#26890c', '#e2a000', '#1368ce']
-    });
-    confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6, x: 0.8 },
-        colors: ['#46178f', '#eb1343', '#26890c', '#e2a000', '#1368ce']
-    });
-}
-
-// Monitoreo en vivo para el instructor
-function startInstructorLiveMonitor() {
-    database.ref('sessions/' + currentActivityId).on('value', snapshot => {
-        const sessionData = snapshot.val();
-        if (!sessionData || !currentActivityCache) return;
-
-        if (sessionData.status === 'active') {
-            const eventIndex = sessionData.currentEventIndex || 0;
-            const events = currentActivityCache.events;
-
-            if (events && events[eventIndex]) {
-                const ev = events[eventIndex];
-                document.getElementById('live-event-badge').innerText = ev.year || `Evento ${eventIndex + 1}`;
-                document.getElementById('live-question-text').innerText = ev.question;
-
-                const optContainer = document.getElementById('live-options-container');
-                optContainer.innerHTML = '';
-                ev.options.forEach((optText, idx) => {
-                    const btn = document.createElement('div');
-                    const isCorrect = idx === ev.correctIndex;
-                    btn.style.cssText = `padding: 12px; border-radius: 8px; font-weight: bold; background: ${isCorrect ? '#26890c' : '#e9ecef'}; color: ${isCorrect ? 'white' : '#333'}; font-size: 1.1rem; box-shadow: ${isCorrect ? '0 4px 12px rgba(38, 137, 12, 0.4)' : 'none'};`;
-                    btn.innerText = `${String.fromCharCode(65 + idx)}. ${optText} ${isCorrect ? '✔ (Correcta)' : ''}`;
-                    optContainer.appendChild(btn);
-                });
-
-                if (eventIndex !== lastTriggeredEventIndex) {
-                    lastTriggeredEventIndex = eventIndex;
-                    triggerCelebration();
-                }
-            }
-        }
-    });
-}
-
-// Escuchar estudiantes conectados
-function listenToParticipants(actId) {
-    database.ref('sessions/' + actId + '/players').on('value', (snapshot) => {
-        const players = snapshot.val() || {};
-        const playersList = document.getElementById('players-list');
-        const countSpan = document.getElementById('player-count');
-        
-        playersList.innerHTML = '';
-        let playerArray = [];
-
-        Object.keys(players).forEach(key => {
-            const p = players[key];
-            playerArray.push(p);
-
-            const chip = document.createElement('li');
-            chip.innerText = p.name;
-            playersList.appendChild(chip);
+    if (typeof confetti === 'function') {
+        confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6, x: 0.2 },
+            colors: ['#46178f', '#eb1343', '#26890c', '#e2a000', '#1368ce']
         });
-
-        countSpan.innerText = playerArray.length;
-        currentPlayersCache = playerArray;
-        updateAnalyticsAndPodium(playerArray);
-    });
-}
-
-// Actualizar Estadísticas, Podio y Tabla
-function updateAnalyticsAndPodium(players) {
-    if (players.length === 0) return;
-
-    let totalCorrect = 0;
-    let totalIncorrect = 0;
-    let totalUnanswered = 0;
-    const totalEventsCount = currentActivityCache && currentActivityCache.events ? currentActivityCache.events.length : 1;
-
-    players.forEach(p => {
-        totalCorrect += (p.correct || 0);
-        totalIncorrect += (p.incorrect || 0);
-        const answered = (p.correct || 0) + (p.incorrect || 0);
-        p.unanswered = Math.max(0, totalEventsCount - answered);
-        totalUnanswered += p.unanswered;
-    });
-
-    const totalAnswers = totalCorrect + totalIncorrect + totalUnanswered;
-    if (totalAnswers > 0) {
-        const correctPct = Math.round((totalCorrect / totalAnswers) * 100);
-        const incorrectPct = Math.round((totalIncorrect / totalAnswers) * 100);
-
-        document.getElementById('stat-participation').innerText = `${players.length} Aprendices`;
-        document.getElementById('stat-correct').innerText = `${correctPct}%`;
-        document.getElementById('stat-incorrect').innerText = `${incorrectPct}%`;
-    }
-
-    players.sort((a, b) => (b.score || 0) - (a.score || 0));
-
-    if (players[0]) {
-        document.getElementById('p1-name').innerText = players[0].name;
-        document.getElementById('p1-score').innerText = `${players[0].score || 0} pts`;
-    }
-    if (players[1]) {
-        document.getElementById('p2-name').innerText = players[1].name;
-        document.getElementById('p2-score').innerText = `${players[1].score || 0} pts`;
-    }
-    if (players[2]) {
-        document.getElementById('p3-name').innerText = players[2].name;
-        document.getElementById('p3-score').innerText = `${players[2].score || 0} pts`;
-    }
-
-    const tbody = document.getElementById('leaderboard-body');
-    tbody.innerHTML = '';
-    players.forEach((p, idx) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><strong>#${idx + 1}</strong></td>
-            <td>${p.name}</td>
-            <td><span style="color: green;">✔ ${p.correct || 0}</span></td>
-            <td><span style="color: red;">✖ ${p.incorrect || 0}</span></td>
-            <td><span style="color: #6c757d;">⏳ ${p.unanswered || 0}</span></td>
-            <td><strong>${p.score || 0} pts</strong></td>
-        `;
-        tbody.appendChild(row);
-    });
-}
-
-// Cargar estado inicial
-window.onload = function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const activityId = urlParams.get('id');
-
-    if (activityId) {
-        currentActivityId = activityId;
-        database.ref('activities/' + activityId).once('value').then((snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                currentActivityCache = data;
-                document.getElementById('activity-title').value = data.title || '';
-                document.getElementById('event-timer').value = data.timer || 30;
-                if (data.controlMode) {
-                    document.getElementById('control-mode').value = data.controlMode;
-                }
-                currentPin = data.pin || generatePIN();
-                
-                const builder = document.getElementById('events-builder');
-                builder.innerHTML = '';
-                
-                if (data.events && data.events.length > 0) {
-                    data.events.forEach((evData) => addEventCard(evData));
-                } else {
-                    addEventCard();
-                }
-                listenToParticipants(activityId);
-            }
+        confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6, x: 0.8 },
+            colors: ['#46178f', '#eb1343', '#26890c', '#e2a000', '#1368ce']
         });
-    } else {
-        addEventCard();
     }
-};
+}
+
+//
