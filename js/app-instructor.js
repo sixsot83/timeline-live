@@ -52,7 +52,6 @@ function createEventCardHTML(index, data = {}) {
     `;
 }
 
-// ===== Agregar evento =====
 function addEventCard(data = null) {
     const builder = document.getElementById('events-builder');
     const count = builder.children.length + 1;
@@ -63,7 +62,6 @@ function addEventCard(data = null) {
     updateEventNumbers();
 }
 
-// ===== Eliminar evento =====
 function removeEventCard(button) {
     const card = button.closest('.builder-card');
     const builder = document.getElementById('events-builder');
@@ -75,17 +73,15 @@ function removeEventCard(button) {
     updateEventNumbers();
 }
 
-// ===== Renumerar =====
 function updateEventNumbers() {
     document.querySelectorAll('#events-builder .builder-card').forEach((card, idx) => {
         const num = card.querySelector('.event-number');
         if (num) num.innerText = idx + 1;
-        // Actualizar name del radio group
         card.querySelectorAll('.ev-correct').forEach(r => r.name = 'correct-' + (idx + 1));
     });
 }
 
-// ===== Guardar actividad =====
+// ===== GUARDAR EN FIREBASE =====
 document.getElementById('timeline-form').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -93,8 +89,13 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
     const timer = parseInt(document.getElementById('event-timer').value);
     const cards = document.querySelectorAll('.builder-card');
 
+    if (cards.length === 0) {
+        alert("❌ Agrega al menos un evento.");
+        return;
+    }
+
     let events = [];
-    cards.forEach((card, idx) => {
+    cards.forEach((card) => {
         const correctRadio = card.querySelector('.ev-correct:checked');
         events.push({
             year: card.querySelector('.ev-year').value,
@@ -113,20 +114,37 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
         currentActivityId = 'act_' + Date.now();
     }
 
+    const saveBtn = document.querySelector('button[type="submit"]');
+    const originalText = saveBtn.innerText;
+    saveBtn.innerText = "⏳ Guardando...";
+    saveBtn.disabled = true;
+
+    // Intentar guardar
     database.ref('activities/' + currentActivityId).set({
         title: title,
         timer: timer,
         events: events,
         updatedAt: new Date().toISOString()
     }).then(() => {
-        // Inicializar sesión
-        database.ref('sessions/' + currentActivityId).update({
+        // Inicializar sesión del lobby
+        return database.ref('sessions/' + currentActivityId).update({
             status: 'LOBBY',
             currentEventIndex: 0
         });
+    }).then(() => {
+        // Generar URL del estudiante de forma segura
+        // Detecta si está en GitHub Pages, localhost o abierto directo
+        let baseUrl = window.location.href.split('?')[0]; 
+        if(baseUrl.endsWith('index.html')) {
+            baseUrl = baseUrl.replace('index.html', 'student.html');
+        } else if (!baseUrl.endsWith('/')) {
+            baseUrl = baseUrl + '/';
+        }
+        if(baseUrl.endsWith('/')) {
+            baseUrl = baseUrl + 'student.html';
+        }
 
-        const baseUrl = window.location.href.replace(/\/[^\/]*$/, '/');
-        const studentUrl = `${baseUrl}student.html?activityId=${currentActivityId}`;
+        const studentUrl = `${baseUrl}?activityId=${currentActivityId}`;
 
         document.getElementById('qrcode').innerHTML = "";
         new QRCode(document.getElementById("qrcode"), {
@@ -137,13 +155,17 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
         document.getElementById('share-url').innerText = studentUrl;
 
         window.history.pushState({}, '', `?id=${currentActivityId}`);
-
         switchTab('tab-lobby');
         listenToParticipants(currentActivityId);
-        alert("✅ Actividad guardada. Los aprendices pueden escanear el QR.");
-    }).catch(err => {
-        console.error(err);
-        alert("❌ Error al guardar: " + err.message);
+        
+        saveBtn.innerText = originalText;
+        saveBtn.disabled = false;
+        alert("✅ ¡Guardado en la nube con éxito!\n\nLos aprendices pueden escanear el QR.");
+    }).catch((error) => {
+        saveBtn.innerText = originalText;
+        saveBtn.disabled = false;
+        console.error("Error Firebase:", error);
+        alert("❌ ERROR AL GUARDAR EN FIREBASE:\n" + error.message + "\n\nRevisa las reglas de tu base de datos (deben estar en modo prueba) y tu conexión.");
     });
 });
 
@@ -170,6 +192,8 @@ window.onload = function() {
                 }
                 listenToParticipants(activityId);
             }
+        }).catch(err => {
+            console.error("Error cargando actividad:", err);
         });
     } else {
         // Cargar ejemplos por defecto
@@ -227,11 +251,11 @@ function startGame() {
     database.ref('sessions/' + currentActivityId).update({
         status: 'STARTED',
         currentEventIndex: 0
-    });
-
-    switchTab('tab-game');
-    showGameEvent(0);
-    listenToGameState();
+    }).then(() => {
+        switchTab('tab-game');
+        showGameEvent(0);
+        listenToGameState();
+    }).catch(err => alert("Error al iniciar: " + err.message));
 }
 
 // ===== Mostrar evento actual =====
@@ -258,14 +282,15 @@ function startInstructorTimer(seconds) {
     instructorTimerInterval = setInterval(() => {
         remaining--;
         document.getElementById('instructor-timer').innerText = Math.max(remaining, 0);
-        if (remaining <= 0) {
-            clearInterval(instructorTimerInterval);
-        }
+        if (remaining <= 0) clearInterval(instructorTimerInterval);
     }, 1000);
 }
 
-// ===== Escuchar estado de la sesión =====
+// ===== Escuchar estado =====
+let gameStateAttached = false;
 function listenToGameState() {
+    if (gameStateAttached) return;
+    gameStateAttached = true;
     database.ref('sessions/' + currentActivityId + '/currentEventIndex').on('value', (snap) => {
         const idx = snap.val();
         if (idx !== null && idx !== undefined && idx !== currentEventIndex) {
@@ -291,17 +316,17 @@ function nextEvent() {
 // ===== Finalizar =====
 function finishGame() {
     if (!currentActivityId) return;
-    database.ref('sessions/' + currentActivityId).update({ status: 'FINISHED' });
-    if (instructorTimerInterval) clearInterval(instructorTimerInterval);
-    switchTab('tab-analytics');
-    alert("🏁 Actividad finalizada. Revisa el podio y descarga el Excel.");
+    database.ref('sessions/' + currentActivityId).update({ status: 'FINISHED' }).then(() => {
+        if (instructorTimerInterval) clearInterval(instructorTimerInterval);
+        switchTab('tab-analytics');
+        alert("🏁 Actividad finalizada. Revisa el podio y descarga el Excel.");
+    });
 }
 
-// ===== Podio y tabla =====
+// ===== Podio =====
 function updateAnalyticsAndPodium(players) {
     if (!players || players.length === 0) return;
 
-    // Ordenar por puntaje, desempate por velocidad (menor tiempo promedio)
     players.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         const avgA = a.totalTime && a.answered ? a.totalTime / a.answered : 999;
@@ -309,7 +334,6 @@ function updateAnalyticsAndPodium(players) {
         return avgA - avgB;
     });
 
-    // Podio
     const setP = (pos, nameEl, scoreEl) => {
         const p = players[pos - 1];
         document.getElementById(nameEl).innerText = p ? p.name : '-';
@@ -319,7 +343,6 @@ function updateAnalyticsAndPodium(players) {
     setP(2, 'p2-name', 'p2-score');
     setP(3, 'p3-name', 'p3-score');
 
-    // Tabla
     const tbody = document.getElementById('leaderboard-body');
     tbody.innerHTML = '';
     players.forEach((p, idx) => {
