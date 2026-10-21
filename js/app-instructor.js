@@ -440,14 +440,15 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
         updatedAt: new Date().toISOString()
     };
 
-    database.ref('activities/' + currentActivityId).set(activityData);
-    currentActivityCache = activityData;
+    database.ref('activities/' + currentActivityId).set(activityData).then(() => {
+        currentActivityCache = activityData;
 
-    database.ref('sessions/' + currentActivityId).update({
-        status: 'waiting',
-        pin: currentPin,
-        controlMode: controlMode,
-        currentEventIndex: 0
+        return database.ref('sessions/' + currentActivityId).update({
+            status: 'waiting',
+            pin: currentPin,
+            controlMode: controlMode,
+            currentEventIndex: 0
+        });
     }).then(() => {
         document.getElementById('session-pin').innerText = currentPin;
 
@@ -464,6 +465,9 @@ document.getElementById('timeline-form').addEventListener('submit', function(e) 
         window.history.pushState({}, '', `?id=${currentActivityId}`);
         switchTab('tab-lobby');
         listenToParticipants(currentActivityId);
+    }).catch(error => {
+        console.error("Error al guardar la actividad:", error);
+        alert("Hubo un error al guardar la actividad en la base de datos.");
     });
 });
 
