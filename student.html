@@ -33,7 +33,7 @@
     <div class="student-card hidden" id="waiting-lobby-screen">
         <h2>¡Te has unido con éxito! 🎉</h2>
         <div class="status-icon" style="font-size: 3rem; margin: 20px 0;">⌛</div>
-        <p>En la sala de espera... La actividad comenzará cuando el instructor presione <strong>Iniciar Actividad</strong>.</p>
+        <p>En la sala de espera... La actividad comenzará cuando el instructor pulse <strong>Iniciar Actividad</strong>.</p>
     </div>
 
     <!-- Pantalla 3: Pregunta Activa -->
@@ -50,11 +50,33 @@
         </div>
     </div>
 
-    <!-- Pantalla 4: Feedback / Resultados -->
+    <!-- Pantalla 4: Feedback Inmediato -->
     <div class="student-card hidden" id="feedback-screen">
         <h2 id="feedback-title">¡Respuesta Registrada!</h2>
         <div id="feedback-icon" class="status-icon" style="font-size: 3rem; margin: 15px 0;">⏳</div>
-        <p id="feedback-msg">Esperando los resultados generales...</p>
+        <p id="feedback-msg">Esperando el cierre del evento...</p>
+    </div>
+
+    <!-- Pantalla 5: Transición / Tiempo Restante para la Siguiente Pregunta -->
+    <div class="student-card hidden" id="transition-screen">
+        <h2>⏳ Preparando Siguiente Pregunta</h2>
+        <p style="margin: 15px 0; color: #555;">El siguiente evento comenzará en:</p>
+        <div id="transition-timer" style="font-size: 3rem; font-weight: bold; color: var(--primary); margin: 20px 0;">5</div>
+    </div>
+
+    <!-- Pantalla 6: Resultados Finales, Puntuación y Posición del Aprendiz -->
+    <div class="student-card hidden" id="final-screen">
+        <h2>🏆 ¡Actividad Finalizada!</h2>
+        <div style="font-size: 4rem; margin: 15px 0;">🎯</div>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin: 5px 0; font-size: 1.1rem;">Tu Puntuación Total:</p>
+            <h3 id="final-score" style="color: var(--primary); font-size: 2rem; margin: 5px 0;">0 pts</h3>
+        </div>
+        <div style="background: #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 1.1rem;">Tu Posición en el Podio:</p>
+            <h3 id="final-position" style="color: var(--secondary); font-size: 1.6rem; margin: 5px 0;">#--</h3>
+        </div>
+        <p style="color: #666; font-size: 0.9rem;">¡Gracias por participar en la línea de tiempo interactiva del SENA!</p>
     </div>
 
     <script src="js/app-student.js"></script>
