@@ -84,7 +84,7 @@ function loadEventsFromExcel(e) {
             alert(`✅ ¡Se han cargado ${jsonRows.length} eventos exitosamente desde el Excel!`);
         } catch (error) {
             console.error(error);
-            alert("Error al procesar el archivo Excel. Asegúrate de que tenga las columnas correctas[cite: 6].");
+            alert("Error al procesar el archivo Excel. Asegúrate de que tenga las columnas correctas.");
         }
     };
     reader.readAsArrayBuffer(file);
@@ -368,47 +368,59 @@ function listenToSessionState(actId) {
     });
 }
 
-// Renderizar la pregunta e identificar la CORRECTA para proyecciones
+// Renderizar las preguntas en modo neutral mientras corre el tiempo, y mostrar la correcta únicamente al finalizar
 function renderInstructorActiveQuestion(event, eventIndex, timerSeconds) {
     if (!event) return;
 
     document.getElementById('instructor-event-badge').innerText = event.year || `Evento ${eventIndex + 1}`;
     document.getElementById('instructor-question-text').innerText = event.question;
 
-    const optionsContainer = document.getElementById('instructor-options-container');
-    optionsContainer.innerHTML = '';
+    const renderOptions = (showCorrect = false) => {
+        const optionsContainer = document.getElementById('instructor-options-container');
+        optionsContainer.innerHTML = '';
 
-    const optionColors = ['var(--secondary)', 'var(--blue)', 'var(--warning)', 'var(--success)'];
+        const optionColors = ['var(--secondary)', 'var(--blue)', 'var(--warning)', 'var(--success)'];
 
-    event.options.forEach((optText, idx) => {
-        const div = document.createElement('div');
-        const isCorrect = (idx === event.correctIndex);
-        
-        div.style.cssText = `
-            padding: 16px; 
-            border-radius: 10px; 
-            color: white; 
-            font-weight: bold; 
-            font-size: 1.2rem;
-            background: ${optionColors[idx % optionColors.length]}; 
-            border: ${isCorrect ? '4px solid #28a745' : '1px solid transparent'};
-            box-shadow: ${isCorrect ? '0 0 12px rgba(40, 167, 69, 0.8)' : 'none'};
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        `;
-        
-        div.innerHTML = `
-            <span>${optText}</span>
-            ${isCorrect ? '<span style="background: #28a745; color: white; padding: 4px 10px; border-radius: 6px; font-size: 0.9rem;">✔ Respuesta Correcta</span>' : ''}
-        `;
-        optionsContainer.appendChild(div);
+        event.options.forEach((optText, idx) => {
+            const div = document.createElement('div');
+            const isCorrect = (idx === event.correctIndex);
+            
+            // Si finalizó el tiempo (showCorrect es true), se resalta la correcta con borde y badge
+            const isHighlighted = showCorrect && isCorrect;
+
+            div.style.cssText = `
+                padding: 16px; 
+                border-radius: 10px; 
+                color: white; 
+                font-weight: bold; 
+                font-size: 1.2rem;
+                background: ${optionColors[idx % optionColors.length]}; 
+                border: ${isHighlighted ? '4px solid #28a745' : '1px solid transparent'};
+                box-shadow: ${isHighlighted ? '0 0 15px rgba(40, 167, 69, 0.9)' : 'none'};
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: all 0.3s ease;
+                opacity: ${showCorrect && !isCorrect ? '0.5' : '1'};
+            `;
+            
+            div.innerHTML = `
+                <span>${optText}</span>
+                ${isHighlighted ? '<span style="background: #28a745; color: white; padding: 4px 10px; border-radius: 6px; font-size: 0.9rem;">✔ Respuesta Correcta</span>' : ''}
+            `;
+            optionsContainer.appendChild(div);
+        });
+    };
+
+    // Al iniciar, NO muestra la respuesta correcta (neutral)
+    renderOptions(false);
+    startInstructorTimer(timerSeconds, () => {
+        // Callback al llegar a 0 segundos: Revela la respuesta correcta en pantalla
+        renderOptions(true);
     });
-
-    startInstructorTimer(timerSeconds);
 }
 
-function startInstructorTimer(seconds) {
+function startInstructorTimer(seconds, onComplete) {
     let timeLeft = seconds;
     const timerEl = document.getElementById('instructor-timer-display');
     timerEl.innerText = timeLeft;
@@ -420,6 +432,9 @@ function startInstructorTimer(seconds) {
         timerEl.innerText = timeLeft;
         if (timeLeft <= 0) {
             clearInterval(instructorTimerInterval);
+            if (typeof onComplete === 'function') {
+                onComplete();
+            }
         }
     }, 1000);
 }
