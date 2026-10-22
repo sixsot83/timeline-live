@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Live - Aprendiz</title>
+
+    <!-- Librerías de Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+        
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="student-body">
+
+    <!-- Pantalla 1: Ingreso -->
+    <div class="student-card" id="join-screen">
+        <div class="logo" style="font-size: 1.8rem; margin-bottom: 15px; color: var(--primary);">⏱️ TimelineLive</div>
+        <h2>Unirse a la Sesión</h2>
+        <div class="form-group">
+            <input type="text" id="pin-input" placeholder="PIN de la Sesión (Ej: 859-421)">
+        </div>
+        <div class="form-group">
+            <input type="text" id="student-name" placeholder="Tu Nombre y Apellido" required>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="joinGame()">Entrar a la Sala</button>
+        <div class="student-footer">
+            Autor: Sixto Sotomayor García
+        </div>
+    </div>
+
+    <!-- Pantalla 2: Sala de Espera del Estudiante -->
+    <div class="student-card hidden" id="waiting-lobby-screen">
+        <h2>¡Te has unido con éxito! 🎉</h2>
+        <div class="status-icon" style="font-size: 3rem; margin: 20px 0;">⌛</div>
+        <p>En la sala de espera... La actividad comenzará cuando el instructor pulse <strong>Iniciar Actividad</strong>.</p>
+    </div>
+
+    <!-- Pantalla 3: Pregunta Activa -->
+    <div class="student-card hidden" id="game-screen">
+        <div class="game-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <span id="event-badge" class="badge" style="background: var(--primary); color: white; padding: 5px 12px; border-radius: 12px; font-weight: bold;">Evento 1</span>
+            <div id="timer-display" class="timer-circle" style="font-size: 1.5rem; font-weight: bold; background: var(--warning); color: white; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center;">30</div>
+        </div>
+
+        <h3 id="question-text">Cargando pregunta...</h3>
+
+        <div class="student-options" id="options-container">
+            <!-- Botones generados dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Pantalla 4: Feedback Inmediato -->
+    <div class="student-card hidden" id="feedback-screen">
+        <h2 id="feedback-title">¡Respuesta Registrada!</h2>
+        <div id="feedback-icon" class="status-icon" style="font-size: 3rem; margin: 15px 0;">⏳</div>
+        <p id="feedback-msg">Esperando el cierre del evento o cambio de pregunta...</p>
+    </div>
+
+    <!-- Pantalla 5: Transición / Tiempo Restante para la Siguiente Pregunta -->
+    <div class="student-card hidden" id="transition-screen">
+        <h2>⏳ Preparando Siguiente Pregunta</h2>
+        <p style="margin: 15px 0; color: #555;">El siguiente evento comenzará en breve:</p>
+        <div id="transition-timer" style="font-size: 3rem; font-weight: bold; color: var(--primary); margin: 20px 0;">5</div>
+    </div>
+
+    <!-- Pantalla 6: Resultados Finales, Puntuación y Posición del Aprendiz -->
+    <div class="student-card hidden" id="final-screen">
+        <h2>🏆 ¡Actividad Finalizada!</h2>
+        <div style="font-size: 4rem; margin: 15px 0;">🎯</div>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin: 5px 0; font-size: 1.1rem;">Tu Puntuación Total:</p>
+            <h3 id="final-score" style="color: var(--primary); font-size: 2rem; margin: 5px 0;">0 pts</h3>
+        </div>
+        <div style="background: #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 1.1rem;">Tu Posición en el Podio:</p>
+            <h3 id="final-position" style="color: var(--secondary); font-size: 1.6rem; margin: 5px 0;">#--</h3>
+        </div>
+        <p style="color: #666; font-size: 0.9rem;">¡Gracias por participar en la línea de tiempo interactiva del SENA!</p>
+    </div>
+
+    <script src="js/app-student.js"></script>
+</body>
+</html>
