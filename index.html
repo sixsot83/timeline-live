@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Live - Panel del Instructor</title>
+    
+    <!-- Librería para generación dinámica de Código QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Librería SheetJS para importar y exportar Excel / CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Librería para explosión de confeti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Librerías de Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Navegación por Pestañas -->
+    <nav class="navbar">
+        <div class="logo">⏳ TimelineLive</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-create')">1. Configurar</button>
+            <button class="tab-btn" onclick="switchTab('tab-saved')">2. Mis Actividades e Historial</button>
+            <button class="tab-btn" onclick="switchTab('tab-lobby')">3. Sala en Vivo (QR)</button>
+            <button class="tab-btn" onclick="switchTab('tab-analytics')">4. Resumen y Podio</button>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Pestaña 1: Configuración de la Actividad y Tiempo -->
+        <section id="tab-create" class="tab-content active">
+            <h2>Configurar Nueva Línea de Tiempo</h2>
+            
+            <!-- Importador de Excel / CSV -->
+            <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid var(--blue);">
+                <h4 style="margin-top:0; color: var(--blue);">📂 Importación rápida desde Excel o CSV</h4>
+                <p style="font-size: 0.9rem; margin-bottom: 10px;">Sube un archivo con columnas: <em>Fase/Año, Descripción, Pregunta, Opción 1, Opción 2, Opción 3 (opcional), Opción 4 (opcional), Correcta (1,2,3...)</em></p>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" onchange="importExcelFile(event)" style="font-size: 0.9rem;">
+            </div>
+
+            <!-- Asistente de Generación con IA (Gemini) -->
+            <div style="background: linear-gradient(135deg, #46178f15, #1368ce15); border: 2px dashed var(--primary); padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <span style="font-size: 1.8rem;">✨</span>
+                    <h3 style="margin: 0; color: var(--primary);">Generar Línea de Tiempo con IA (Gemini)</h3>
+                </div>
+                <p style="font-size: 0.95rem; color: #555; margin-bottom: 15px;">
+                    Ingresa un tema de formación y la Inteligencia Artificial creará una línea de tiempo cronológica completa con preguntas estructuradas automáticamente.
+                </p>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="ai-topic-input" placeholder="Ej: Historia y evolución de los lenguajes de programación" style="padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+                    <input type="number" id="ai-events-count" value="4" min="2" max="10" placeholder="N° Eventos" style="padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+                    <button type="button" class="btn btn-primary" id="btn-generate-ai" onclick="generateTimelineWithAI()">✨ Generar con IA</button>
+                </div>
+                <div id="ai-loading-status" class="hidden" style="color: var(--primary); font-weight: bold; font-size: 0.9rem; margin-top: 5px;">
+                    ⏳ Generando eventos con IA, por favor espera...
+                </div>
+            </div>
+
+            <form id="timeline-form">
+                <div class="form-group">
+                    <label>Título de la Actividad:</label>
+                    <input type="text" id="activity-title" placeholder="Ej: Evolución del Desarrollo de Software - SENA" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Tiempo por Evento (segundos):</label>
+                        <input type="number" id="event-timer" value="30" min="5" max="120" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Modo de Control:</label>
+                        <select id="control-mode" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-weight: bold;">
+                            <option value="auto">🤖 Automático (Avanza al terminar tiempo)</option>
+                            <option value="manual">✋ Manual (El instructor da clic en Siguiente)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h3>Eventos Cronológicos</h3>
+                <div id="events-builder">
+                    <!-- Los eventos se cargan o crean dinámicamente -->
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="button" class="btn btn-secondary" onclick="addEventCard()">+ Agregar Evento</button>
+                    <button type="submit" class="btn btn-primary">Guardar y Habilitar QR</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Pestaña 2: Consultar Actividades Guardadas e Historial con Exportación a Excel -->
+        <section id="tab-saved" class="tab-content">
+            <h2>📚 Mis Actividades Guardadas</h2>
+            <p style="color: #666; margin-bottom: 20px;">Reutiliza tus actividades creadas previamente en tus fichas de formación.</p>
+            
+            <div id="saved-activities-container" style="display: grid; gap: 15px; margin-bottom: 40px;">
+                <p style="text-align: center; color: #888;">Cargando actividades guardadas...</p>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #ddd; margin: 30px 0;">
+
+            <h2>📊 Historial de Resultados de Sesiones Realizadas</h2>
+            <p style="color: #666; margin-bottom: 20px;">Consulta las ejecuciones pasadas y descarga los reportes consolidados en Excel para evidencias de formación.</p>
+
+            <div id="history-container" style="display: grid; gap: 15px;">
+                <p style="text-align: center; color: #888;">Cargando historial de ejecuciones...</p>
+            </div>
+        </section>
+
+        <!-- Pestaña 3: Sala de Espera y Transmisión en Vivo con QR -->
+        <section id="tab-lobby" class="tab-content">
+            <div class="lobby-header" style="text-align: center;">
+                <h2>¡Escanea el Código QR o ingresa con el PIN para Unirte!</h2>
+                <div class="pin-badge" style="display: inline-block; margin-top: 10px;">PIN de Sesión: <span id="session-pin">------</span></div>
+            </div>
+
+            <div class="lobby-grid">
+                <div class="qr-box">
+                    <div id="qrcode" style="display: flex; justify-content: center; margin-bottom: 10px;"></div>
+                    <p>Accede desde tu dispositivo móvil</p>
+                </div>
+
+                <div class="players-box">
+                    <h3>Aprendices Conectados (<span id="player-count">0</span>)</h3>
+                    <ul id="players-list" class="players-chips">
+                        <!-- Nombres de estudiantes conectados -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Panel de Monitoreo Activo / Proyección para el Instructor -->
+            <div id="instructor-live-panel" class="builder-card hidden" style="margin-top: 25px; border-left-color: var(--success);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0; color: var(--success);">📽️ Proyección en Vivo - Ambiente de Formación</h3>
+                    <span id="live-timer-badge" class="pin-badge" style="background: var(--primary);">⏱️ Activo</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <p id="live-event-badge" style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;"></p>
+                    <h2 id="live-question-text" style="font-size: 1.3rem; margin-bottom: 15px;">Esperando inicio...</h2>
+                    <div id="live-options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
+                </div>
+                <div id="instructor-manual-controls" class="hidden" style="margin-top: 20px; text-align: right;">
+                    <button class="btn btn-primary btn-lg" onclick="nextManualEvent()">Siguiente Pregunta ➡️ (✋ Manual)</button>
+                </div>
+            </div>
+
+            <div class="control-actions" style="text-align: center; margin-top: 25px;">
+                <button class="btn btn-success btn-lg" id="start-session-btn" onclick="startTimelineSession()">🚀 Iniciar Actividad en Vivo</button>
+            </div>
+        </section>
+
+        <!-- Pestaña 4: Resumen Estadístico y Podio -->
+        <section id="tab-analytics" class="tab-content">
+            <!-- Sub-sección A: RESUMEN -->
+            <div class="analytics-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2>📊 Resumen Estadístico de la Actividad Actual</h2>
+                    <button class="btn btn-success" onclick="exportCurrentSessionToExcel()">📥 Descargar Excel de Sesión Actual</button>
+                </div>
+                <div class="stats-cards">
+                    <div class="card-stat">
+                        <span class="stat-number" id="stat-participation">0%</span>
+                        <span class="stat-label">Promedio de Participación</span>
+                    </div>
+                    <div class="card-stat success">
+                        <span class="stat-number" id="stat-correct">0%</span>
+                        <span class="stat-label">Respuestas Acertadas</span>
+                    </div>
+                    <div class="card-stat danger">
+                        <span class="stat-number" id="stat-incorrect">0%</span>
+                        <span class="stat-label">Respuestas No Acertadas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-sección B: PODIO ANIMADO -->
+            <div class="analytics-section">
+                <h2>🏆 Podio de Ganadores</h2>
+                <div class="podium-container">
+                    <!-- Segundo Lugar -->
+                    <div class="podium-step step-2">
+                        <div class="avatar-badge silver">
+                            <svg class="trophy-icon" viewBox="0 0 24 24"><path fill="#C0C0C0" d="M12 2A10 10 0 1 0 22 12 10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path fill="#C0C0C0" d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6z"/></svg>
+                            <span>🥈</span>
+                        </div>
+                        <div class="player-name" id="p2-name">--</div>
+                        <div class="player-score" id="p2-score">0 pts</div>
+                        <div class="bar bar-2">2° Lugar</div>
+                    </div>
+
+                    <!-- Primer Lugar -->
+                    <div class="podium-step step-1">
+                        <div class="avatar-badge gold">
+                            <svg class="trophy-icon glow" viewBox="0 0 24 24"><path fill="#FFD700" d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0 0 11 15.9V18H8v2h8v-2h-3v-2.1c2.25-.37 4-2.31 4-4.9V8c0-1.1-.9-2-2-2zM5 8h2v2c0 1.1-.9 2-2 2s-2-.9-2-2V8zm14 2c0 1.1-.9 2-2 2v-2h2z"/></svg>
+                            <span>🏆</span>
+                        </div>
+                        <div class="player-name" id="p1-name">--</div>
+                        <div class="player-score" id="p1-score">0 pts</div>
+                        <div class="bar bar-1">1° Lugar</div>
+                    </div>
+
+                    <!-- Tercer Lugar -->
+                    <div class="podium-step step-3">
+                        <div class="avatar-badge bronze">
+                            <svg class="trophy-icon" viewBox="0 0 24 24"><path fill="#CD7F32" d="M12 2A10 10 0 1 0 22 12 10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/></svg>
+                            <span>🥉</span>
+                        </div>
+                        <div class="player-name" id="p3-name">--</div>
+                        <div class="player-score" id="p3-score">0 pts</div>
+                        <div class="bar bar-3">3° Lugar</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sub-sección C: TABLA GENERAL DE POSICIONES -->
+            <div class="analytics-section">
+                <h2>📋 Tabla General de Participantes</h2>
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Posición</th>
+                            <th>Nombre Completo</th>
+                            <th>Acertadas</th>
+                            <th>No Acertadas</th>
+                            <th>No Respondidas</th>
+                            <th>Puntuación Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                        <!-- Se llena dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- Pie de Página -->
+        <footer class="author-footer">
+            <p>Desarrollado por: <strong>Sixto Manuel Sotomayor García</strong></p>
+            <p>Educador y Curriculum Developer | Formación Profesional y Competencias TIC</p>
+        </footer>
+    
+    </div>
+
+    <!-- Carga la SDK oficial de Google Gen AI -->
+    <script type="importmap">
+    {
+        "imports": {
+        "@google/genai": "https://esm.run/@google/genai"
+        }
+    }
+    </script>
+
+    <script src="js/app-instructor.js"></script>
+</body>
+</html>
